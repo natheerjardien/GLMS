@@ -1,0 +1,77 @@
+@model IEnumerable<PROG7311_GLMS_ST10435542.Models.ServiceRequest>
+
+@{
+    Layout = "_Layout";
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Index</title>
+</head>
+<body>
+<h2>Service Requests List</h2>
+@* for the styling of the UI I made use of a bootstrap that I placed in /wwwroot/css folder and linked in the _Layout.cshtml file *@
+<p>
+    <a asp-action="Create" class="btn btn-outline-primary">Create New</a>
+</p>
+<table class="table table-hover table-bordered align-middle bg-white shadow-sm rounded">
+    <thead>
+        <tr>
+            <th>
+                Contract:
+            </th>
+            <th>
+                Description:
+            </th>
+            <th>
+                Cost(ZAR):
+            </th>
+            <th>
+                Status:
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @(item.Contract?.Client?.Name)_@(item.Contract?.ServiceLevel)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Description)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Cost)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Status)
+            </td>
+            <td class="text-center">
+                <div class="d-flex flex-wrap gap-1 justify-content-center">
+                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-outline-warning">Edit</a>
+                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-primary">Details</a>
+                    
+                    @if (User.IsInRole("Admin")) @* only people logged in as an admin can see the delete button *@
+                    {
+                        <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-outline-danger">Delete</a>
+                    }
+                </div>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>
+</body>
+</html>
+
+@* Reference List:
+ 
+    Bootswatch. (n.d.). Morph - A neumorphic layer. [online]
+    Available at: <https://openexchangerates.org/https://bootswatch.com/morph/>
+    [Accessed 21 April 2026].
+
+ *@

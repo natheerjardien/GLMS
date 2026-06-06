@@ -1,0 +1,161 @@
+@model IEnumerable<PROG7311_GLMS_ST10435542.Models.Contract>
+
+@{
+    Layout = "_Layout";
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Index</title>
+</head>
+<body>
+<h2>Contracts List</h2>
+@* for the styling of the UI I made use of a bootstrap that I placed in /wwwroot/css folder and linked in the _Layout.cshtml file *@
+<p>
+    <a asp-action="Create" class="btn btn-outline-primary">Create New</a>
+</p>
+
+@if (User.IsInRole("Admin"))
+{
+    <form method="get" asp-action="Index" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 5px;">
+        <div style="display: flex; gap: 15px; align-items: flex-end;">
+            
+            <div>
+                <label>Start Date (From):</label>
+                <input type="date" name="startDate" class="form-control" value="@ViewData["CurrentStartDate"]" />
+            </div>
+
+            <div>
+                <label>End Date (To):</label>
+                <input type="date" name="endDate" class="form-control" value="@ViewData["CurrentEndDate"]" />
+            </div>
+
+            <div>
+                <label>Status:</label>
+                <select name="searchStatus" class="form-control">
+                    <option value="">-- All Statuses --</option>
+                    <option value="Draft" selected="@(ViewData["CurrentStatus"]?.ToString() == "Draft" ? "selected" : null)"> Draft </option>
+                    <option value="Active" selected="@(ViewData["CurrentStatus"]?.ToString() == "Active" ? "selected" : null)"> Active </option>
+                    <option value="Expired" selected="@(ViewData["CurrentStatus"]?.ToString() == "Expired" ? "selected" : null)"> Expired </option>
+                    <option value="On Hold" selected="@(ViewData["CurrentStatus"]?.ToString() == "On Hold" ? "selected" : null)"> On Hold </option>
+                </select>
+            </div>
+
+            <div>
+                <button type="submit" class="btn btn-outline-primary">Search</button>
+                <a asp-action="Index" class="btn btn-outline-light">Clear</a>
+            </div>
+            
+        </div>
+    </form>
+}
+
+<table class="table table-hover table-bordered align-middle bg-white shadow-sm rounded">
+    <thead>
+        <tr>
+            <th>
+                Client:
+            </th>
+            <th>
+                Start Date:
+            </th>
+            <th>
+                End Date:
+            </th>
+            <th>
+                Service Level:
+            </th>
+            <th>
+                Status:
+            </th>
+            <th>
+                Uploaded Agreement:
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.Client.Name)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.StartDate)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.EndDate)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ServiceLevel)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Status)
+            </td>
+            <td>
+                @if (!string.IsNullOrEmpty(item.SignedAgreementFilePath))
+                {
+                    <a href="@item.SignedAgreementFilePath" target="_blank" class="btn btn-sm btn-outline-success">Download PDF</a>
+                }
+                else
+                {
+                    <span class="text-muted">No File</span>
+                }
+            </td>
+            <td class="text-center">
+                <div class="d-flex flex-column gap-2 align-items-stretch">
+
+                        <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary"> Details </a>
+
+                        @if (item.Status == "Draft" || item.Status == "On Hold")
+                        {
+                            <form asp-action="Activate" asp-route-id="@item.Id" method="post">
+                                <button type="submit" class="btn btn-sm btn-outline-success"> Activate </button>
+                            </form>
+                        }
+
+                        @if (item.Status == "Active")
+                        {
+                            <form asp-action="PutOnHold" asp-route-id="@item.Id" method="post">
+                                <button type="submit" class="btn btn-sm btn-outline-warning"> Put On Hold </button>
+                            </form>
+
+                            <form asp-action="Expire" asp-route-id="@item.Id" method="post" onsubmit="return confirm('Are you sure you want to expire this contract? This action will lock it from future service requests.');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"> Expire </button>
+                            </form>
+                        }
+
+                        @if (item.Status == "On Hold")
+                        {
+                            <form asp-action="Expire" asp-route-id="@item.Id" method="post" onsubmit="return confirm('Are you sure you want to expire this contract? This action will lock it from future service requests.');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"> Expire </button>
+                            </form>
+                        }
+
+                        @if (User.IsInRole("Admin")) @* only people logged in as an admin can see the delete button *@
+                        {
+                            <form asp-action="Delete" asp-route-id="@item.Id" method="post" onsubmit="return confirm('Delete this contract permanently?');">
+                                <button type="submit" class="btn btn-sm btn-danger shadow-sm">
+                                    Delete
+                                </button>
+                            </form>
+                        }
+                </div>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>
+</body>
+</html>
+
+@* Reference List:
+ 
+    Bootswatch. (n.d.). Morph - A neumorphic layer. [online]
+    Available at: <https://openexchangerates.org/https://bootswatch.com/morph/>
+    [Accessed 21 April 2026].
+
+ *@

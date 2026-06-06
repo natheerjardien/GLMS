@@ -1,0 +1,98 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - TechMove GLMS</title>
+    <script type="importmap"></script>
+    <link rel="stylesheet" href="~/css/bootswatchMorph.min.css" />
+    @* these lines link the morph bootstrap theme to make the website look modern *@
+    <link rel="stylesheet" href="~/css/bootswatchMorph.min.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/PROG7311_GLMS_ST10435542.styles.css" asp-append-version="true" />
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-lg bg-body-tertiary sticky-top mb-3 shadow-sm">
+            <div class="container-fluid">
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">PROG7311_GLMS_ST10435542</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarColor04" aria-controls="navbarColor04" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                
+                <div class="collapse navbar-collapse" id="navbarColor04">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Client" asp-action="Index">Clients</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Contract" asp-action="Index">Contracts</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="ServiceRequest" asp-action="Index">Service Requests</a>
+                        </li>
+                    </ul>
+                    @* this pulls in the login/logout buttons from the partial view *@
+                    <div class="d-flex">                      
+                        <partial name="_LoginPartial" />
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container">
+        @if (TempData["Error"] != null) @* this block checks for error messages and shows a red 'oh snap' alert box *@
+        {
+            <div class="alert alert-dismissible alert-danger shadow fade show" role="alert">
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                <h4 class="alert-heading">Oh snap!</h4>
+                <p class="mb-0">@TempData["Error"]</p>
+            </div>
+        }
+
+        @if (TempData["Success"] != null) @* this block checks for success messages and shows a green alert box *@
+        {
+            <div id="success-alert" class="alert alert-dismissible alert-success shadow fade show" role="alert">
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                <strong>Success:</strong> @TempData["Success"]
+            </div>
+        }
+
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted mt-5">
+        <div class="container py-3">
+            &copy; 2026 - PROG7311_GLMS_ST10435542
+        </div>
+    </footer>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+
+    <script> @* automatically hides the green success messages after 5 seconds *@
+        setTimeout(function () {
+            let alert = document.getElementById('success-alert');
+            if (alert) {
+                let bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }
+        }, 5000);
+    </script>
+
+</body>
+</html>
+
+@* Reference List:
+ 
+    Bootswatch. (n.d.). Morph - A neumorphic layer. [online]
+    Available at: <https://openexchangerates.org/https://bootswatch.com/morph/>
+    [Accessed 21 April 2026].
+
+ *@

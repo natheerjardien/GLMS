@@ -1,0 +1,45 @@
+@model PROG7311_GLMS_ST10435542.Models.Client
+
+@{
+    Layout = "_Layout";
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Details</title>
+</head>
+<body>
+
+<div>
+    <h2>Client</h2>
+    <hr />
+    <dl class="row">
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.Name)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.Name)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.ContactDetails)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.ContactDetails)
+        </dd>
+        <dt class = "col-sm-2">
+            @Html.DisplayNameFor(model => model.Region)
+        </dt>
+        <dd class = "col-sm-10">
+            @Html.DisplayFor(model => model.Region)
+        </dd>
+    </dl>
+</div>
+<div class="mt-4 d-flex gap-2">
+    <a asp-action="Edit" asp-route-id="@Model?.Id" class="btn btn-outline-warning">Edit</a>
+    <a asp-action="Index" class="btn btn-outline-dark">Back to List</a>
+</div>
+</body>
+</html>
