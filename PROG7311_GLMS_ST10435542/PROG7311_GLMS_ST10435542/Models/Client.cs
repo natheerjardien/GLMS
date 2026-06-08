@@ -15,7 +15,9 @@ namespace PROG7311_GLMS_ST10435542.Models
 
         [Required]
         public string Region { get; set; }
+        public string ApplicationUserId { get; set; } // to link the client profile to the Identity user account
 
-        public List<Contract> Contracts { get; set; } = new();
+        // navigation property to link one client to many contracts
+        public virtual ICollection<Contract> Contracts { get; set; } = new List<Contract>();
     }
 }

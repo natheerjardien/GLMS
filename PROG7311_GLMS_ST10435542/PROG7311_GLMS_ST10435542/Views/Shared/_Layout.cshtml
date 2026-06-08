@@ -24,15 +24,35 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Client" asp-action="Index">Clients</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Contract" asp-action="Index">Contracts</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="ServiceRequest" asp-action="Index">Service Requests</a>
-                        </li>
+
+                        @if (User.IsInRole("Admin") || User.IsInRole("Staff"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Client" asp-action="Index">Clients</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Contract" asp-action="Index">Contracts</a>
+                            </li>
+                        }
+
+                        @if (User.IsInRole("Admin") || User.IsInRole("Staff"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="ServiceRequest" asp-action="Index">All Service Requests</a>
+                            </li>
+                        }
+                        else if (User.Identity.IsAuthenticated && User.IsInRole("Client"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="ServiceRequest" asp-action="MyRequests">My Service Requests</a>
+                            </li>
+                        }
+                        else if (User.IsInRole("Driver"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="ServiceRequest" asp-action="DriverIndex">My Deliveries</a>
+                            </li>
+                        }
                     </ul>
                     @* this pulls in the login/logout buttons from the partial view *@
                     <div class="d-flex">                      

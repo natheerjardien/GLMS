@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.AspNetCore.Http; // needed for IFormFile
 
 namespace PROG7311_GLMS_ST10435542.Models
 {
@@ -8,8 +9,9 @@ namespace PROG7311_GLMS_ST10435542.Models
         [Key]
         public int Id { get; set; }
 
+        [ForeignKey("Client")]
         public int ClientId { get; set; }
-        public Client? Client { get; set; }
+        public virtual Client? Client { get; set; }
 
         [Required]
         public DateTime StartDate { get; set; }
@@ -21,12 +23,12 @@ namespace PROG7311_GLMS_ST10435542.Models
         public string ServiceLevel { get; set; }
 
         [Required]
-        public string Status { get; set; }
+        public string Status { get; set; } = "Draft"; // default status when a contract is created
 
-        [NotMapped] // tells the db not to create a column for this property
+        [NotMapped] // tells the db to ignore this property because it is just for handling the active upload stream
         public IFormFile? ContractFile { get; set; }
 
         public string? SignedAgreementFilePath { get; set; }
-        public List<ServiceRequest> ServiceRequests { get; set; } = new();
+        public virtual ICollection<ServiceRequest> ServiceRequests { get; set; } = new List<ServiceRequest>();
     }
 }

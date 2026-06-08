@@ -27,6 +27,8 @@ builder.Services.AddRazorPages();
 builder.Services.AddScoped<IContractFactory, ContractFactory>(); // this registers the factory pattern service
 builder.Services.AddHttpClient<ICurrencyConversionStrategy, LiveExchangeRateStrategy>(); // this registers the live currency api service and lets it use the internet
 builder.Services.AddScoped<IContractStateManager, ContractStateManager>();// this registers the state pattern manager service
+builder.Services.AddScoped<ICurrencyConversionStrategy, LiveExchangeRateStrategy>();
+builder.Services.AddScoped<IPricingService, PricingService>();
 
 var app = builder.Build();
 

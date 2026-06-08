@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PROG7311_GLMS_ST10435542.Data;
 
@@ -11,9 +12,11 @@ using PROG7311_GLMS_ST10435542.Data;
 namespace PROG7311_GLMS_ST10435542.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260606202309_AddPackageSizeAndPricing")]
+    partial class AddPackageSizeAndPricing
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -232,10 +235,6 @@ namespace PROG7311_GLMS_ST10435542.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("ApplicationUserId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("ContactDetails")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -299,9 +298,6 @@ namespace PROG7311_GLMS_ST10435542.Migrations
                     b.Property<string>("AssignedDriverId")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("ClientId")
-                        .HasColumnType("int");
-
                     b.Property<int>("ContractId")
                         .HasColumnType("int");
 
@@ -347,8 +343,6 @@ namespace PROG7311_GLMS_ST10435542.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ClientId");
 
                     b.HasIndex("ContractId");
 
@@ -419,19 +413,11 @@ namespace PROG7311_GLMS_ST10435542.Migrations
 
             modelBuilder.Entity("PROG7311_GLMS_ST10435542.Models.ServiceRequest", b =>
                 {
-                    b.HasOne("PROG7311_GLMS_ST10435542.Models.Client", "Client")
-                        .WithMany()
-                        .HasForeignKey("ClientId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
                     b.HasOne("PROG7311_GLMS_ST10435542.Models.Contract", "Contract")
                         .WithMany("ServiceRequests")
                         .HasForeignKey("ContractId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Client");
 
                     b.Navigation("Contract");
                 });

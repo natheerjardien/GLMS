@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 using PROG7311_GLMS_ST10435542.Data;
 using PROG7311_GLMS_ST10435542.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using System.ComponentModel.DataAnnotations;
 
 namespace PROG7311_GLMS_ST10435542.Controllers
 {
@@ -15,10 +17,27 @@ namespace PROG7311_GLMS_ST10435542.Controllers
     public class ClientController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly UserManager<IdentityUser> _userManager;
 
-        public ClientController(ApplicationDbContext context)
+        public ClientController(ApplicationDbContext context, UserManager<IdentityUser> userManager)
         {
             _context = context;
+            _userManager = userManager;
+        }
+
+        public class ClientCreateViewModel
+        {
+            public int Id { get; set; }
+            [Required] 
+            public string Name { get; set; }
+            [Required] 
+            public string ContactDetails { get; set; }
+            [Required] 
+            public string Region { get; set; }
+            [Required, EmailAddress] 
+            public string Email { get; set; }
+            [Required, DataType(DataType.Password)] 
+            public string Password { get; set; }
         }
 
         // GET: Client
@@ -56,15 +75,43 @@ namespace PROG7311_GLMS_ST10435542.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Name,ContactDetails,Region")] Client client)
+        public async Task<IActionResult> Create(ClientCreateViewModel model)
         {
             if (ModelState.IsValid)
             {
-                _context.Add(client);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                var user = new IdentityUser { UserName = model.Email, Email = model.Email };
+                var result = await _userManager.CreateAsync(user, model.Password);
+                
+                if (result.Succeeded)
+                {
+                    await _userManager.AddToRoleAsync(user, "Client");
+
+                    var client = new Client
+                    {
+                        Name = model.Name,
+                        ContactDetails = model.ContactDetails,
+                        Region = model.Region,
+                        ApplicationUserId = user.Id
+                    };
+
+                    _context.Clients.Add(client);
+
+                    await _context.SaveChangesAsync();
+
+                    TempData["Success"] = "Client and Login account created successfully!";
+                    return RedirectToAction(nameof(Index));
+                }
+                else
+                {
+                    foreach (var error in result.Errors)
+                    {
+                        ModelState.AddModelError(string.Empty, error.Description);
+                    }
+
+                    return View(model);
+                }
             }
-            return View(client);
+            return View(model);
         }
 
         // GET: Client/Edit/5
@@ -80,7 +127,16 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             {
                 return NotFound();
             }
-            return View(client);
+
+            var model = new ClientCreateViewModel
+            {
+                Id = client.Id, // Ensure Id is in your ViewModel!
+                Name = client.Name,
+                ContactDetails = client.ContactDetails,
+                Region = client.Region
+            };
+
+            return View(model);
         }
 
         // POST: Client/Edit/5
@@ -88,9 +144,9 @@ namespace PROG7311_GLMS_ST10435542.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Name,ContactDetails,Region")] Client client)
+        public async Task<IActionResult> Edit(int id, ClientCreateViewModel model)
         {
-            if (id != client.Id)
+            if (id != model.Id)
             {
                 return NotFound();
             }
@@ -99,12 +155,23 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             {
                 try
                 {
+                    var client = await _context.Clients.FindAsync(id);
+                    
+                    if (client == null)
+                    {
+                        return NotFound();
+                    }
+
+                    client.Name = model.Name;
+                    client.ContactDetails = model.ContactDetails;
+                    client.Region = model.Region;
+
                     _context.Update(client);
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!ClientExists(client.Id))
+                    if (!ClientExists(model.Id))
                     {
                         return NotFound();
                     }
@@ -115,7 +182,7 @@ namespace PROG7311_GLMS_ST10435542.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
-            return View(client);
+            return View(model);
         }
 
         // GET: Client/Delete/5
@@ -161,10 +228,16 @@ namespace PROG7311_GLMS_ST10435542.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
+                var user = await _userManager.FindByIdAsync(client.ApplicationUserId);
+                if (user != null)
+                {
+                    await _userManager.DeleteAsync(user);
+                }
+
                 _context.Clients.Remove(client);
                 await _context.SaveChangesAsync();
 
-                TempData["Success"] = "Client successfully removed from the system.";
+                TempData["Success"] = "Client and associated Account successfully removed from the system.";
             }
             catch (Exception ex)
             {

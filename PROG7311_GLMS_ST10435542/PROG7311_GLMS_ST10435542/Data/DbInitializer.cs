@@ -11,7 +11,7 @@ namespace PROG7311_GLMS_ST10435542.Data
             var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
             var userManager = serviceProvider.GetRequiredService<UserManager<IdentityUser>>();
 
-            string[] roles = { "Admin", "Staff" }; // the two profiles uses
+            string[] roles = { "Admin", "Staff", "Client", "Driver" }; // the three profiles uses
 
             foreach (var role in roles)
             {
@@ -25,14 +25,21 @@ namespace PROG7311_GLMS_ST10435542.Data
             {
                 var admin = new IdentityUser { UserName = "admin@glms.com", Email = "admin@glms.com" };
                 await userManager.CreateAsync(admin, "admin123");
-                await userManager.AddToRoleAsync(admin, "admin");
+                await userManager.AddToRoleAsync(admin, "Admin");
             }
 
             if (await userManager.FindByEmailAsync("staff@glms.com") == null) // creates the profile for staff
             {
                 var staff = new IdentityUser { UserName = "staff@glms.com", Email = "staff@glms.com" };
                 await userManager.CreateAsync(staff, "staff123");
-                await userManager.AddToRoleAsync(staff, "staff");
+                await userManager.AddToRoleAsync(staff, "Staff");
+            }
+
+            if (await userManager.FindByEmailAsync("driver@glms.com") == null) // creates the profile for driver
+            {
+                var driver = new IdentityUser { UserName = "driver@glms.com", Email = "driver@glms.com" };
+                await userManager.CreateAsync(driver, "driver123");
+                await userManager.AddToRoleAsync(driver, "Driver");
             }
         }
     }

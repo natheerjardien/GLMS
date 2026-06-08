@@ -18,14 +18,23 @@ namespace PROG7311_GLMS_ST10435542.Data
         {
             base.OnModelCreating(builder); // This is CRITICAL for Identity to work
 
-            // Fixes the decimal precision warnings
-            builder.Entity<ServiceRequest>()
-                .Property(s => s.OriginalCost)
-                .HasColumnType("decimal(18,2)");
+            builder.Entity<Contract>() // creates a strict one-to-many relationship between client and contract
+                .HasOne(c => c.Client)
+                .WithMany(cl => cl.Contracts)
+                .HasForeignKey(c => c.ClientId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            builder.Entity<ServiceRequest>() // creates a strict one-to-many relationship between contract and service request
+                .HasOne(sr => sr.Contract)
+                .WithMany(c => c.ServiceRequests)
+                .HasForeignKey(sr => sr.ContractId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             builder.Entity<ServiceRequest>()
-                .Property(s => s.Cost)
-                .HasColumnType("decimal(18,2)");
+                .HasOne(sr => sr.Client)
+                .WithMany()
+                .HasForeignKey(sr => sr.ClientId)
+                .OnDelete(DeleteBehavior.NoAction);
         }
     }
 }
