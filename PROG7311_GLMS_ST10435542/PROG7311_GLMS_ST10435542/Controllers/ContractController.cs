@@ -1,51 +1,48 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using PROG7311_GLMS_ST10435542.Data;
-using PROG7311_GLMS_ST10435542.Models;
-using PROG7311_GLMS_ST10435542.Services;
 using Microsoft.AspNetCore.Authorization;
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+
+// ONLY import MVC models, NEVER the API models here
+using PROG7311_GLMS_ST10435542.Models;
+using PROG7311_GLMS_ST10435542.Services.ApiClients;
 
 namespace PROG7311_GLMS_ST10435542.Controllers
 {
-    [Authorize(Roles = "Admin,Staff")] // both admin and staff can access this controller
+    [Authorize(Roles = "Admin,Staff")]
     public class ContractController : Controller
     {
-        private readonly ApplicationDbContext _context;
-        private readonly IContractFactory _contractFactory;
-        private readonly IContractStateManager _stateManager;
+        private readonly ContractApiClient _apiClient;
+        private readonly ClientApiClient _clientApiClient;
 
-        public ContractController(ApplicationDbContext context, IContractFactory contractFactory, IContractStateManager stateManager)
+        public ContractController(ContractApiClient apiClient, ClientApiClient clientApiClient)
         {
-            _context = context;
-            _contractFactory = contractFactory;
-            _stateManager = stateManager;
+            _apiClient = apiClient;
+            _clientApiClient = clientApiClient;
         }
 
-        // GET: Contract
         public async Task<IActionResult> Index(DateTime? startDate, DateTime? endDate, string searchStatus)
         {
-            var contracts = from c in _context.Contracts.Include(c => c.Client) select c; // pulls all the clients and their contracts from the DB
+            var contracts = await _apiClient.GetAllAsync();
 
             if (User.IsInRole("Admin"))
             {
                 if (startDate.HasValue)
                 {
-                    contracts = contracts.Where(c => c.StartDate >= startDate.Value); // filters contracts to only include those that start on or after the chosen start date
+                    contracts = contracts.Where(c => c.StartDate >= startDate.Value);
                 }
 
                 if (endDate.HasValue)
                 {
-                    contracts = contracts.Where(c => c.EndDate <= endDate.Value); // filters contracts to only include those that end on or before the chosen end date
+                    contracts = contracts.Where(c => c.EndDate <= endDate.Value);
                 }
 
                 if (!string.IsNullOrEmpty(searchStatus))
                 {
-                    contracts = contracts.Where(c => c.Status == searchStatus); // filters contracts to only include those with the chosen status
+                    contracts = contracts.Where(c => c.Status == searchStatus);
                 }
 
                 ViewData["CurrentStartDate"] = startDate?.ToString("yyyy-MM-dd");
@@ -53,10 +50,9 @@ namespace PROG7311_GLMS_ST10435542.Controllers
                 ViewData["CurrentStatus"] = searchStatus;
             }
 
-            return View(await contracts.ToListAsync());
+            return View(contracts);
         }
 
-        // GET: Contract/Details/5
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null)
@@ -64,9 +60,8 @@ namespace PROG7311_GLMS_ST10435542.Controllers
                 return NotFound();
             }
 
-            var contract = await _context.Contracts
-                .Include(c => c.Client)
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var contract = await _apiClient.GetByIdAsync(id.Value);
+
             if (contract == null)
             {
                 return NotFound();
@@ -75,32 +70,24 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             return View(contract);
         }
 
-        // GET: Contract/Create
-        public IActionResult Create()
+        public async Task<IActionResult> Create()
         {
-            ViewData["ClientId"] = new SelectList(_context.Clients, "Id", "Name");
+            var clients = await _clientApiClient.GetAllAsync();
+            ViewData["ClientId"] = new SelectList(clients, "Id", "Name");
             return View();
         }
 
-        // POST: Contract/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,ClientId,StartDate,EndDate,ServiceLevel,ContractFile")] Contract contract) // dont have to include Status and SignedAgreementFilePath because they are set in the factory
+        public async Task<IActionResult> Create([Bind("Id,ClientId,StartDate,EndDate,ServiceLevel,ContractFile")] Contract contract)
         {
-            ModelState.Remove("Status"); // remove validation for Status since it will be set in the factory
-            ModelState.Remove("SignedAgreementFilePath"); // removed since it will be set in the factory
+            ModelState.Remove("Status");
+            ModelState.Remove("SignedAgreementFilePath");
             ModelState.Remove("Client");
             ModelState.Remove("ServiceRequests");
 
             if (ModelState.IsValid)
             {
-                var newContract = _contractFactory.CreateContract(
-                    contract.ClientId,
-                    contract.ServiceLevel,
-                    contract.StartDate,
-                    contract.EndDate
-                ); // creates a new contract using the factory which sets the default values for Status and SignedAgreementFilePath
-
                 if (contract.ContractFile != null && contract.ContractFile.Length > 0)
                 {
                     string fileName = Guid.NewGuid().ToString() + "_" + contract.ContractFile.FileName;
@@ -110,20 +97,18 @@ namespace PROG7311_GLMS_ST10435542.Controllers
                     {
                         await contract.ContractFile.CopyToAsync(stream);
                     }
-
-                    newContract.SignedAgreementFilePath = "/uploads/contracts/" + fileName;
+                    contract.SignedAgreementFilePath = "/uploads/contracts/" + fileName;
                 }
 
-                _context.Add(newContract);
-                await _context.SaveChangesAsync();
-
+                await _apiClient.CreateAsync(contract);
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["ClientId"] = new SelectList(_context.Clients, "Id", "Name", contract.ClientId);
+
+            var clients = await _clientApiClient.GetAllAsync();
+            ViewData["ClientId"] = new SelectList(clients, "Id", "Name", contract.ClientId);
             return View(contract);
         }
 
-        // GET: Contract/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -131,28 +116,25 @@ namespace PROG7311_GLMS_ST10435542.Controllers
                 return NotFound();
             }
 
-            var contract = await _context.Contracts.FindAsync(id);
-
+            var contract = await _apiClient.GetByIdAsync(id.Value);
+            
             if (contract == null)
             {
                 return NotFound();
             }
 
-            if (contract.Status == "Expired") // for just in case the user tries to edit through the url even though the button is hidden for expired contracts
+            if (contract.Status == "Expired")
             {
                 TempData["Error"] = "Expired contracts are strictly read-only and cannot be edited.";
-                
                 return RedirectToAction(nameof(Index)); 
             }
 
-            ViewData["ClientId"] = new SelectList(_context.Clients, "Id", "ContactDetails", contract.ClientId);
+            var clients = await _clientApiClient.GetAllAsync();
+            ViewData["ClientId"] = new SelectList(clients, "Id", "ContactDetails", contract.ClientId);
             
             return View(contract);
         }
 
-        // POST: Contract/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("Id,ClientId,StartDate,EndDate,ServiceLevel,Status,SignedAgreementFilePath")] Contract contract)
@@ -164,29 +146,15 @@ namespace PROG7311_GLMS_ST10435542.Controllers
 
             if (ModelState.IsValid)
             {
-                try
-                {
-                    _context.Update(contract);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!ContractExists(contract.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
+                await _apiClient.UpdateAsync(id, contract);
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["ClientId"] = new SelectList(_context.Clients, "Id", "ContactDetails", contract.ClientId);
+            
+            var clients = await _clientApiClient.GetAllAsync();
+            ViewData["ClientId"] = new SelectList(clients, "Id", "ContactDetails", contract.ClientId);
             return View(contract);
         }
 
-        // GET: Contract/Delete/5
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int? id)
         {
@@ -195,9 +163,8 @@ namespace PROG7311_GLMS_ST10435542.Controllers
                 return NotFound();
             }
 
-            var contract = await _context.Contracts
-                .Include(c => c.Client)
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var contract = await _apiClient.GetByIdAsync(id.Value);
+            
             if (contract == null)
             {
                 return NotFound();
@@ -206,7 +173,6 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             return View(contract);
         }
 
-        // POST: Contract/Delete/5
         [Authorize(Roles = "Admin")]
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
@@ -214,109 +180,57 @@ namespace PROG7311_GLMS_ST10435542.Controllers
         {
             try
             {
-                var contract = await _context.Contracts
-                    .Include(c => c.ServiceRequests)
-                    .FirstOrDefaultAsync(m => m.Id == id);
-
-                if (contract == null)
-                {
-                    TempData["Error"] = "Contract not found.";
-
-                    return RedirectToAction(nameof(Index));
-                }
-
-                if (contract.ServiceRequests.Any())
-                {
-                    TempData["Error"] = "Oh snap! This contract has Service Requests linked to it. You must remove those requests before deleting the contract.";
-                    
-                    return RedirectToAction(nameof(Index));
-                }
-
-                _context.Contracts.Remove(contract);
-
-                await _context.SaveChangesAsync();
+                await _apiClient.DeleteAsync(id);
                 TempData["Success"] = "Contract deleted successfully.";
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                TempData["Error"] = "Cannot delete this contract because it has active Service Requests linked to it. Delete the requests first!";
+                TempData["Error"] = "Cannot delete. " + ex.Message;
             }
                         
             return RedirectToAction(nameof(Index));
         }
 
-        private bool ContractExists(int id)
-        {
-            return _context.Contracts.Any(e => e.Id == id);
-        }
-
         [HttpPost]
-        public async Task<IActionResult> Activate (int id)
+        public async Task<IActionResult> Activate(int id)
         {
-            var contract = await _context.Contracts.FindAsync(id);
-
-            if (contract == null)
-            {
-                return NotFound();
+            try 
+            { 
+                await _apiClient.UpdateStatusAsync(id, "Activate"); 
             }
-
-            try
-            {
-                _stateManager.ActivateContract(contract);
-                await _context.SaveChangesAsync();
+            catch (InvalidOperationException ex) 
+            { 
+                TempData["Error"] = ex.Message; 
             }
-            catch (InvalidOperationException ex)
-            {
-                TempData["Error"] = ex.Message; // this catches the "already active" errors
-            }
-
             return RedirectToAction(nameof(Index));
         }
 
         [HttpPost]
-        public async Task<IActionResult> Expire (int id)
+        public async Task<IActionResult> Expire(int id)
         {
-            var contract = await _context.Contracts.FindAsync(id);
-
-            if (contract == null)
-            {
-                return NotFound();
+            try 
+            { 
+                await _apiClient.UpdateStatusAsync(id, "Expire"); 
             }
-
-            try
-            {
-                _stateManager.ExpireContract(contract);
-                await _context.SaveChangesAsync();
+            catch (InvalidOperationException ex) 
+            { 
+                TempData["Error"] = ex.Message; 
             }
-            catch (InvalidOperationException ex)
-            {
-                TempData["Error"] = ex.Message;
-            }
-
             return RedirectToAction(nameof(Index));
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> PutOnHold(int id) // added this new method to allow admin to put a contract on hold which prevents new service requests from being created for that contract until its reactivated
+        public async Task<IActionResult> PutOnHold(int id)
         {
-            var contract = await _context.Contracts.FindAsync(id);
-            
-            if (contract == null)
-            {
-                return NotFound();
+            try 
+            { 
+                await _apiClient.UpdateStatusAsync(id, "Hold"); 
             }
-
-            try
-            {
-                _stateManager.PutOnHoldContract(contract);
-                await _context.SaveChangesAsync();
+            catch (InvalidOperationException ex) 
+            { 
+                TempData["Error"] = ex.Message; 
             }
-            catch (InvalidOperationException ex)
-            {
-                TempData["Error"] = ex.Message; // this catches the "already on hold" errors
-            }
-
             return RedirectToAction(nameof(Index));
         }
     }

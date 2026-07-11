@@ -5,42 +5,43 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using PROG7311_GLMS_ST10435542.Data;
-using PROG7311_GLMS_ST10435542.Models;
-using PROG7311_GLMS_ST10435542.Services;
+using PROG7311_GLMS_API.Data;
+using PROG7311_GLMS_API.Models;
+using PROG7311_GLMS_API.Services;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
+using PROG7311_GLMS_ST10435542.Services.ApiClients;
+
 
 namespace PROG7311_GLMS_ST10435542.Controllers
 {
     [Authorize(Roles = "Admin,Staff,Client,Driver")]
     public class ServiceRequestController : Controller
     {
+        private readonly ServiceRequestClient _apiClient;
         private readonly ApplicationDbContext _context;
         private readonly ICurrencyConversionStrategy _currencyStrategy;
         private readonly IPricingService _pricingService;
         private readonly UserManager<IdentityUser> _userManager;
 
-        public ServiceRequestController(ApplicationDbContext context, ICurrencyConversionStrategy currencyStrategy, IPricingService pricingService, UserManager<IdentityUser> userManager)
+        public ServiceRequestController(ApplicationDbContext context, ICurrencyConversionStrategy currencyStrategy, IPricingService pricingService, UserManager<IdentityUser> userManager, ServiceRequestClient apiClient)
         {
             _context = context;
             _currencyStrategy = currencyStrategy;
             _pricingService = pricingService;
             _userManager = userManager;
+            _apiClient = apiClient;
         }
 
         // GET: ServiceRequest
         [Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> Index()
         {
-            var applicationDbContext = _context.ServiceRequests
-                .Include(s => s.Contract)
-                .ThenInclude(c => c.Client);
-
-            var list = await applicationDbContext.ToListAsync();
+            var list = await _apiClient.GetAllAsync();
 
             var drivers = await _userManager.GetUsersInRoleAsync("Driver");
+            
             ViewBag.DriverDict = drivers.ToDictionary(d => d.Id, d => d.UserName);
 
             return View(list);
@@ -51,10 +52,11 @@ namespace PROG7311_GLMS_ST10435542.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             
-            var myRequests = await _context.ServiceRequests
-                .Include(s => s.Client)
+            var allRequests = await _apiClient.GetAllAsync();
+
+            var myRequests = allRequests
                 .Where(s => s.Client.ApplicationUserId == userId) 
-                .ToListAsync();
+                .ToList();
 
             return View("MyRequests", myRequests);
         }
@@ -63,10 +65,12 @@ namespace PROG7311_GLMS_ST10435542.Controllers
         public async Task<IActionResult> DriverIndex()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var allRequests = await _apiClient.GetAllAsync();
             
-            var assignedRequests = await _context.ServiceRequests
+            var assignedRequests = allRequests
                 .Where(s => s.AssignedDriverId == userId) 
-                .ToListAsync();
+                .ToList();
 
             return View("DriverIndex", assignedRequests);
         }
@@ -80,9 +84,7 @@ namespace PROG7311_GLMS_ST10435542.Controllers
                 return NotFound();
             }
 
-            var serviceRequest = await _context.ServiceRequests
-                .Include(s => s.Contract)
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var serviceRequest = await _apiClient.GetByIdAsync(id.Value);
 
             if (serviceRequest == null)
             {
@@ -116,9 +118,7 @@ namespace PROG7311_GLMS_ST10435542.Controllers
 
             ViewData["ContractId"] = new SelectList(contractList, "Id", "DisplayText");
 
-            var drivers = _userManager.GetUsersInRoleAsync("Driver").Result;
-            
-            ViewBag.DriverList = new SelectList(drivers, "Id", "UserName");
+            PopulateDriversDropDownList();
 
             return View();
         }
@@ -160,8 +160,7 @@ namespace PROG7311_GLMS_ST10435542.Controllers
 
                 serviceRequest.Cost = await _pricingService.GetTotalCostInUsdAsync(serviceRequest.PackageSizeCategory, serviceRequest.SlaType); // calculates the final ZAR cost based on the package size category
 
-                _context.Add(serviceRequest);
-                await _context.SaveChangesAsync();
+                await _apiClient.CreateAsync(serviceRequest);
 
                 TempData["Success"] = "Courier Request successfully created.";
                 
@@ -187,11 +186,10 @@ namespace PROG7311_GLMS_ST10435542.Controllers
                     DisplayText = c.Client.Name + " - " + c.ServiceLevel + " (" + c.Status + ")"
                 });
 
-            ViewData["ContractId"] = new SelectList(contractList, "Id", "DisplayText", serviceRequest.ContractId);
+            ViewData["ContractId"] = new SelectList(_context.Contracts.Where(c => c.Status == "Active").Select(c => new { c.Id, DisplayText = c.Client.Name }), "Id", "DisplayText", serviceRequest.ContractId);
 
             // repopulate the driver dropdown if validation fails
-            var drivers = await _userManager.GetUsersInRoleAsync("Driver");
-            ViewBag.DriverList = new SelectList(drivers, "Id", "UserName", serviceRequest.AssignedDriverId);
+            PopulateDriversDropDownList(serviceRequest.AssignedDriverId);
 
             return View(serviceRequest);
         }
@@ -205,7 +203,7 @@ namespace PROG7311_GLMS_ST10435542.Controllers
                 return NotFound();
             }
 
-            var serviceRequest = await _context.ServiceRequests.FindAsync(id);
+            var serviceRequest = await _apiClient.GetByIdAsync(id.Value);
 
             await PopulateDriversDropDownList(serviceRequest.AssignedDriverId);
 
@@ -234,12 +232,7 @@ namespace PROG7311_GLMS_ST10435542.Controllers
                 contractQuery = contractQuery.Where(c => c.Client.ApplicationUserId == userId);
             }
 
-            var contractList = contractQuery.Select(c => new {
-                Id = c.Id,
-                DisplayText = c.Client.Name + " - " + c.ServiceLevel + " (" + c.Status + ")"
-            });
-
-            ViewData["ContractId"] = new SelectList(contractList, "Id", "DisplayText", serviceRequest.ContractId);
+            ViewData["ContractId"] = new SelectList(contractQuery.Select(c => new { c.Id, DisplayText = c.Client.Name + " - " + c.ServiceLevel }), "Id", "DisplayText", serviceRequest.ContractId);
 
             return View(serviceRequest);
         }
@@ -257,7 +250,7 @@ namespace PROG7311_GLMS_ST10435542.Controllers
                 return NotFound();
             }
 
-            var requestToUpdate = await _context.ServiceRequests.FindAsync(id);
+            var requestToUpdate = await _apiClient.GetByIdAsync(id);
             
             if (requestToUpdate == null)
             {
@@ -292,20 +285,20 @@ namespace PROG7311_GLMS_ST10435542.Controllers
 
             if (requestToUpdate.OriginalCost != serviceRequest.OriginalCost)
             {
-                requestToUpdate.OriginalCost = serviceRequest.OriginalCost;
-                requestToUpdate.Cost = await _currencyStrategy.ConvertAsync(serviceRequest.OriginalCost);
+                requestToUpdate.OriginalCost = (decimal)(serviceRequest.OriginalCost ?? 0m);
+                requestToUpdate.Cost = await _currencyStrategy.ConvertAsync(serviceRequest.OriginalCost ?? 0m);
             }
 
             if (ModelState.IsValid)
             {
                 try
                 {
-                    await _context.SaveChangesAsync();
+                    await _apiClient.UpdateAsync(id, requestToUpdate);
                     TempData["Success"] = "Service Request updated successfully.";
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!ServiceRequestExists(serviceRequest.Id))
+                    if (await ServiceRequestExists(serviceRequest.Id))
                     {
                         return NotFound();
                     }
@@ -343,9 +336,8 @@ namespace PROG7311_GLMS_ST10435542.Controllers
                 return NotFound();
             }
 
-            var serviceRequest = await _context.ServiceRequests
-                .Include(s => s.Contract)
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var serviceRequest = await _apiClient.GetByIdAsync(id.Value);
+
             if (serviceRequest == null)
             {
                 return NotFound();
@@ -362,18 +354,9 @@ namespace PROG7311_GLMS_ST10435542.Controllers
         {
             try
             {
-                var serviceRequest = await _context.ServiceRequests.FindAsync(id);
+                await _apiClient.DeleteAsync(id);
                 
-                if (serviceRequest != null)
-                {
-                    _context.ServiceRequests.Remove(serviceRequest);
-                    await _context.SaveChangesAsync();
-                    TempData["Success"] = "Service Request removed successfully.";
-                }
-                else
-                {
-                    TempData["Error"] = "Service Request not found.";
-                }
+                TempData["Success"] = "Service Request removed successfully.";
             }
             catch (Exception ex)
             {
@@ -383,12 +366,14 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        private bool ServiceRequestExists(int id)
+        private async Task<bool> ServiceRequestExists(int id)
         {
-            return _context.ServiceRequests.Any(e => e.Id == id);
+            var request = await _apiClient.GetByIdAsync(id);
+
+            return request != null;
         }
 
-        private async Task PopulateDriversDropDownList(object selectedDriver = null) // helper method to populate the driver dropdown in the views
+        private async Task PopulateDriversDropDownList(object? selectedDriver = null) // helper method to populate the driver dropdown in the views
         {
             var drivers = await _userManager.GetUsersInRoleAsync("Driver");
             ViewBag.DriverList = new SelectList(drivers, "Id", "UserName", selectedDriver);

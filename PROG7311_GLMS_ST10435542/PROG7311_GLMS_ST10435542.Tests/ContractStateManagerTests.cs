@@ -1,5 +1,5 @@
-using PROG7311_GLMS_ST10435542.Services;
-using PROG7311_GLMS_ST10435542.Models;
+using PROG7311_GLMS_API.Services;
+using PROG7311_GLMS_API.Models;
 
 namespace PROG7311_GLMS_ST10435542.Tests
 {

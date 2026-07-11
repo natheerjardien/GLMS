@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using PROG7311_GLMS_ST10435542.Data;
-using PROG7311_GLMS_ST10435542.Services;
+using PROG7311_GLMS_API.Data;
+using PROG7311_GLMS_API.Services;
 using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,6 +29,8 @@ builder.Services.AddHttpClient<ICurrencyConversionStrategy, LiveExchangeRateStra
 builder.Services.AddScoped<IContractStateManager, ContractStateManager>();// this registers the state pattern manager service
 builder.Services.AddScoped<ICurrencyConversionStrategy, LiveExchangeRateStrategy>();
 builder.Services.AddScoped<IPricingService, PricingService>();
+
+builder.Services.AddHttpClient<PROG7311_GLMS_ST10435542.Services.ApiClients.ServiceRequestClient>();
 
 var app = builder.Build();
 

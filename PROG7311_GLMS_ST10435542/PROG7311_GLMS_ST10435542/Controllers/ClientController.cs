@@ -1,78 +1,74 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using PROG7311_GLMS_ST10435542.Data;
-using PROG7311_GLMS_ST10435542.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
 
+using PROG7311_GLMS_ST10435542.Models;
+using PROG7311_GLMS_ST10435542.Services.ApiClients;
+
 namespace PROG7311_GLMS_ST10435542.Controllers
 {
-    [Authorize(Roles = "Admin,Staff")] // both admin and staff can access this controller
+    [Authorize(Roles = "Admin,Staff")] 
     public class ClientController : Controller
     {
-        private readonly ApplicationDbContext _context;
+        private readonly ClientApiClient _apiClient;
         private readonly UserManager<IdentityUser> _userManager;
 
-        public ClientController(ApplicationDbContext context, UserManager<IdentityUser> userManager)
+        public ClientController(ClientApiClient apiClient, UserManager<IdentityUser> userManager)
         {
-            _context = context;
+            _apiClient = apiClient;
             _userManager = userManager;
         }
 
         public class ClientCreateViewModel
         {
             public int Id { get; set; }
+            
             [Required] 
-            public string Name { get; set; }
+            public string Name { get; set; } = string.Empty;
+            
             [Required] 
-            public string ContactDetails { get; set; }
+            public string ContactDetails { get; set; } = string.Empty;
+            
             [Required] 
-            public string Region { get; set; }
+            public string Region { get; set; } = string.Empty;
+            
             [Required, EmailAddress] 
-            public string Email { get; set; }
+            public string Email { get; set; } = string.Empty;
+            
             [Required, DataType(DataType.Password)] 
-            public string Password { get; set; }
+            public string Password { get; set; } = string.Empty;
         }
 
-        // GET: Client
         public async Task<IActionResult> Index()
         {
-            return View(await _context.Clients.ToListAsync());
+            return View(await _apiClient.GetAllAsync());
         }
 
-        // GET: Client/Details/5
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null)
             {
                 return NotFound();
             }
-
-            var client = await _context.Clients
-                .FirstOrDefaultAsync(m => m.Id == id);
+            
+            var client = await _apiClient.GetByIdAsync(id.Value);
+            
             if (client == null)
             {
                 return NotFound();
             }
-
+            
             return View(client);
         }
 
-        // GET: Client/Create
         public IActionResult Create()
         {
             return View();
         }
 
-        // POST: Client/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(ClientCreateViewModel model)
@@ -94,27 +90,21 @@ namespace PROG7311_GLMS_ST10435542.Controllers
                         ApplicationUserId = user.Id
                     };
 
-                    _context.Clients.Add(client);
-
-                    await _context.SaveChangesAsync();
-
+                    await _apiClient.CreateAsync(client);
+                    
                     TempData["Success"] = "Client and Login account created successfully!";
                     return RedirectToAction(nameof(Index));
                 }
-                else
+                
+                foreach (var error in result.Errors)
                 {
-                    foreach (var error in result.Errors)
-                    {
-                        ModelState.AddModelError(string.Empty, error.Description);
-                    }
-
-                    return View(model);
+                    ModelState.AddModelError(string.Empty, error.Description);
                 }
             }
+            
             return View(model);
         }
 
-        // GET: Client/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -122,7 +112,8 @@ namespace PROG7311_GLMS_ST10435542.Controllers
                 return NotFound();
             }
 
-            var client = await _context.Clients.FindAsync(id);
+            var client = await _apiClient.GetByIdAsync(id.Value);
+            
             if (client == null)
             {
                 return NotFound();
@@ -130,7 +121,7 @@ namespace PROG7311_GLMS_ST10435542.Controllers
 
             var model = new ClientCreateViewModel
             {
-                Id = client.Id, // Ensure Id is in your ViewModel!
+                Id = client.Id,
                 Name = client.Name,
                 ContactDetails = client.ContactDetails,
                 Region = client.Region
@@ -139,9 +130,6 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             return View(model);
         }
 
-        // POST: Client/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, ClientCreateViewModel model)
@@ -153,39 +141,24 @@ namespace PROG7311_GLMS_ST10435542.Controllers
 
             if (ModelState.IsValid)
             {
-                try
+                var client = await _apiClient.GetByIdAsync(id);
+                
+                if (client == null)
                 {
-                    var client = await _context.Clients.FindAsync(id);
-                    
-                    if (client == null)
-                    {
-                        return NotFound();
-                    }
-
-                    client.Name = model.Name;
-                    client.ContactDetails = model.ContactDetails;
-                    client.Region = model.Region;
-
-                    _context.Update(client);
-                    await _context.SaveChangesAsync();
+                    return NotFound();
                 }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!ClientExists(model.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
+
+                client.Name = model.Name;
+                client.ContactDetails = model.ContactDetails;
+                client.Region = model.Region;
+
+                await _apiClient.UpdateAsync(id, client);
                 return RedirectToAction(nameof(Index));
             }
+            
             return View(model);
         }
 
-        // GET: Client/Delete/5
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int? id)
         {
@@ -194,17 +167,16 @@ namespace PROG7311_GLMS_ST10435542.Controllers
                 return NotFound();
             }
 
-            var client = await _context.Clients
-                .FirstOrDefaultAsync(m => m.Id == id);
+            var client = await _apiClient.GetByIdAsync(id.Value);
+            
             if (client == null)
             {
                 return NotFound();
             }
-
+            
             return View(client);
         }
 
-        // POST: Client/Delete/5
         [Authorize(Roles = "Admin")]
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
@@ -212,44 +184,31 @@ namespace PROG7311_GLMS_ST10435542.Controllers
         {
             try
             {
-                var client = await _context.Clients
-                .Include(c => c.Contracts)
-                .FirstOrDefaultAsync(m => m.Id == id);
-
+                var client = await _apiClient.GetByIdAsync(id);
+                
                 if (client == null)
                 {
                     TempData["Error"] = "Client not found.";
                     return RedirectToAction(nameof(Index));
                 }
 
-                if (client.Contracts.Any())
-                {
-                    TempData["Error"] = "Oh snap! You cannot delete a client that has active contracts. Delete the contracts first.";
-                    return RedirectToAction(nameof(Index));
-                }
+                await _apiClient.DeleteAsync(id);
 
                 var user = await _userManager.FindByIdAsync(client.ApplicationUserId);
+                
                 if (user != null)
                 {
                     await _userManager.DeleteAsync(user);
                 }
 
-                _context.Clients.Remove(client);
-                await _context.SaveChangesAsync();
-
-                TempData["Success"] = "Client and associated Account successfully removed from the system.";
+                TempData["Success"] = "Client and associated Account successfully removed.";
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                TempData["Error"] = "A database error occurred while trying to delete the client.";
+                TempData["Error"] = "Error deleting client.";
             }
 
             return RedirectToAction(nameof(Index));
-        }
-
-        private bool ClientExists(int id)
-        {
-            return _context.Clients.Any(e => e.Id == id);
         }
     }
 }
