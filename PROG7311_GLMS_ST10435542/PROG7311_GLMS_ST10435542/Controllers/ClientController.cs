@@ -1,50 +1,58 @@
-using System;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
 
 using PROG7311_GLMS_ST10435542.Models;
+using PROG7311_GLMS_ST10435542.Models.Auth;
 using PROG7311_GLMS_ST10435542.Services.ApiClients;
 
 namespace PROG7311_GLMS_ST10435542.Controllers
 {
-    [Authorize(Roles = "Admin,Staff")] 
+    [Authorize(Roles = "Admin,Staff")]
     public class ClientController : Controller
     {
         private readonly ClientApiClient _apiClient;
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly AuthApiClient _authApiClient;
+        private readonly UsersApiClient _usersApiClient;
 
-        public ClientController(ClientApiClient apiClient, UserManager<IdentityUser> userManager)
+        public ClientController(ClientApiClient apiClient, AuthApiClient authApiClient, UsersApiClient usersApiClient)
         {
             _apiClient = apiClient;
-            _userManager = userManager;
+            _authApiClient = authApiClient;
+            _usersApiClient = usersApiClient;
         }
 
         public class ClientCreateViewModel
         {
             public int Id { get; set; }
-            
-            [Required] 
+
+            [Required]
             public string Name { get; set; } = string.Empty;
-            
-            [Required] 
+
+            [Required]
             public string ContactDetails { get; set; } = string.Empty;
-            
-            [Required] 
+
+            [Required]
             public string Region { get; set; } = string.Empty;
-            
-            [Required, EmailAddress] 
+
+            [Required, EmailAddress]
             public string Email { get; set; } = string.Empty;
-            
-            [Required, DataType(DataType.Password)] 
+
+            [Required, DataType(DataType.Password)]
             public string Password { get; set; } = string.Empty;
         }
 
         public async Task<IActionResult> Index()
         {
-            return View(await _apiClient.GetAllAsync());
+            try
+            {
+                return View(await _apiClient.GetAllAsync());
+            }
+            catch (HttpRequestException)
+            {
+                TempData["Error"] = "Could not reach the GLMS API.";
+                return View(Enumerable.Empty<Client>());
+            }
         }
 
         public async Task<IActionResult> Details(int? id)
@@ -53,14 +61,14 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             {
                 return NotFound();
             }
-            
+
             var client = await _apiClient.GetByIdAsync(id.Value);
-            
+
             if (client == null)
             {
                 return NotFound();
             }
-            
+
             return View(client);
         }
 
@@ -75,33 +83,32 @@ namespace PROG7311_GLMS_ST10435542.Controllers
         {
             if (ModelState.IsValid)
             {
-                var user = new IdentityUser { UserName = model.Email, Email = model.Email };
-                var result = await _userManager.CreateAsync(user, model.Password);
-                
-                if (result.Succeeded)
+                try
                 {
-                    await _userManager.AddToRoleAsync(user, "Client");
-
-                    var client = new Client
+                    // One API call creates the Identity login AND the client profile -
+                    // the frontend no longer has a UserManager of its own.
+                    await _authApiClient.RegisterClientAsync(new RegisterClientRequest
                     {
+                        Email = model.Email,
+                        Password = model.Password,
                         Name = model.Name,
                         ContactDetails = model.ContactDetails,
-                        Region = model.Region,
-                        ApplicationUserId = user.Id
-                    };
+                        Region = model.Region
+                    });
 
-                    await _apiClient.CreateAsync(client);
-                    
                     TempData["Success"] = "Client and Login account created successfully!";
                     return RedirectToAction(nameof(Index));
                 }
-                
-                foreach (var error in result.Errors)
+                catch (InvalidOperationException ex)
                 {
-                    ModelState.AddModelError(string.Empty, error.Description);
+                    ModelState.AddModelError(string.Empty, ex.Message);
+                }
+                catch (HttpRequestException)
+                {
+                    ModelState.AddModelError(string.Empty, "Could not reach the GLMS API.");
                 }
             }
-            
+
             return View(model);
         }
 
@@ -113,7 +120,7 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             }
 
             var client = await _apiClient.GetByIdAsync(id.Value);
-            
+
             if (client == null)
             {
                 return NotFound();
@@ -139,10 +146,14 @@ namespace PROG7311_GLMS_ST10435542.Controllers
                 return NotFound();
             }
 
+            // Email/Password are only used when creating a brand-new client login
+            ModelState.Remove("Email");
+            ModelState.Remove("Password");
+
             if (ModelState.IsValid)
             {
                 var client = await _apiClient.GetByIdAsync(id);
-                
+
                 if (client == null)
                 {
                     return NotFound();
@@ -152,10 +163,17 @@ namespace PROG7311_GLMS_ST10435542.Controllers
                 client.ContactDetails = model.ContactDetails;
                 client.Region = model.Region;
 
-                await _apiClient.UpdateAsync(id, client);
-                return RedirectToAction(nameof(Index));
+                try
+                {
+                    await _apiClient.UpdateAsync(id, client);
+                    return RedirectToAction(nameof(Index));
+                }
+                catch (InvalidOperationException ex)
+                {
+                    ModelState.AddModelError(string.Empty, ex.Message);
+                }
             }
-            
+
             return View(model);
         }
 
@@ -168,12 +186,12 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             }
 
             var client = await _apiClient.GetByIdAsync(id.Value);
-            
+
             if (client == null)
             {
                 return NotFound();
             }
-            
+
             return View(client);
         }
 
@@ -185,7 +203,7 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             try
             {
                 var client = await _apiClient.GetByIdAsync(id);
-                
+
                 if (client == null)
                 {
                     TempData["Error"] = "Client not found.";
@@ -194,18 +212,21 @@ namespace PROG7311_GLMS_ST10435542.Controllers
 
                 await _apiClient.DeleteAsync(id);
 
-                var user = await _userManager.FindByIdAsync(client.ApplicationUserId);
-                
-                if (user != null)
+                // Remove the linked login account through the API as well
+                if (!string.IsNullOrEmpty(client.ApplicationUserId))
                 {
-                    await _userManager.DeleteAsync(user);
+                    await _usersApiClient.DeleteUserAsync(client.ApplicationUserId);
                 }
 
                 TempData["Success"] = "Client and associated Account successfully removed.";
             }
-            catch (Exception)
+            catch (InvalidOperationException ex)
             {
-                TempData["Error"] = "Error deleting client.";
+                TempData["Error"] = "Cannot delete. " + ex.Message;
+            }
+            catch (HttpRequestException)
+            {
+                TempData["Error"] = "Could not reach the GLMS API.";
             }
 
             return RedirectToAction(nameof(Index));

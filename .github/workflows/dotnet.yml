@@ -1,0 +1,34 @@
+name: .NET Core CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: PROG7311_GLMS_ST10435542
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore PROG7311_GLMS_ST10435542.slnx
+
+    - name: Build
+      run: dotnet build PROG7311_GLMS_ST10435542.slnx --no-restore
+
+    # Runs the unit tests AND the API integration tests (in-memory database,
+    # no SQL Server needed) - a failing test blocks the merge.
+    - name: Test
+      run: dotnet test PROG7311_GLMS_ST10435542.slnx --no-build --verbosity normal

@@ -1,0 +1,81 @@
+# GLMS - full ecosystem orchestration (PROG7311 POE Part 3)
+#
+#   docker compose up --build
+#
+#   Container 1: sql-server-db      -> SQL Server 2022 (data persisted in a named volume)
+#   Container 2: glms-backend-api   -> ASP.NET Core Web API (the ONLY thing talking to the DB)
+#   Container 3: glms-frontend-web  -> ASP.NET Core MVC app (talks to the API over HTTP only)
+#
+# The containers find each other by SERVICE NAME over the internal bridge network
+# (e.g. the API's connection string points at "sql-server-db", the web app points at
+# "http://glms-backend-api:8080/"). Nothing except the published ports is reachable
+# from outside the network.
+
+services:
+
+  sql-server-db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sql-server-db
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "GLMS_Str0ng!Passw0rd"
+      MSSQL_PID: "Express"
+    volumes:
+      - sql-data:/var/opt/mssql      # database files survive container restarts
+    networks:
+      - glms-network
+    healthcheck:
+      # The API waits for this to pass before it starts, so migrations never race the DB
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'GLMS_Str0ng!Passw0rd' -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  glms-backend-api:
+    build:
+      context: ./PROG7311_GLMS_ST10435542
+      dockerfile: PROG7311_GLMS_API/Dockerfile
+    image: glms-backend-api
+    container_name: glms-backend-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      # Internal Docker networking: "sql-server-db" resolves to Container 1
+      ConnectionStrings__DefaultConnection: "Server=sql-server-db,1433;Database=GLMS_PROG7311_DB;User Id=sa;Password=GLMS_Str0ng!Passw0rd;TrustServerCertificate=True;MultipleActiveResultSets=true"
+      Jwt__Key: "GLMS_PROG7311_ST10435542_Super_Secret_Docker_Key_ChangeMe_2026!"
+      Jwt__Issuer: "GLMS.Api"
+      Jwt__Audience: "GLMS.Client"
+    ports:
+      - "5187:8080"   # Swagger UI: http://localhost:5187
+    depends_on:
+      sql-server-db:
+        condition: service_healthy
+    networks:
+      - glms-network
+
+  glms-frontend-web:
+    build:
+      context: ./PROG7311_GLMS_ST10435542
+      dockerfile: PROG7311_GLMS_ST10435542/Dockerfile
+    image: glms-frontend-web
+    container_name: glms-frontend-web
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      # Internal Docker networking: "glms-backend-api" resolves to Container 2
+      ApiSettings__BaseUrl: "http://glms-backend-api:8080/"
+    ports:
+      - "5225:8080"   # Web app: http://localhost:5225
+    volumes:
+      - uploads-data:/app/wwwroot/uploads   # signed agreement PDFs survive restarts
+    depends_on:
+      - glms-backend-api
+    networks:
+      - glms-network
+
+volumes:
+  sql-data:
+  uploads-data:
+
+networks:
+  glms-network:
+    driver: bridge

@@ -1,4 +1,4 @@
-using PROG7311_GLMS_ST10435542.Services;
+using PROG7311_GLMS_API.Services; // the Factory pattern classes moved into the API project in Part 3
 
 namespace PROG7311_GLMS_ST10435542.Tests
 {

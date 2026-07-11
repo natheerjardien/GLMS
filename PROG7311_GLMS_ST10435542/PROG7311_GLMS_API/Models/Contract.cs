@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.AspNetCore.Http; // needed for IFormFile
 
 namespace PROG7311_GLMS_API.Models
 {
@@ -25,9 +24,9 @@ namespace PROG7311_GLMS_API.Models
         [Required]
         public string Status { get; set; } = "Draft"; // default status when a contract is created
 
-        [NotMapped] // tells the db to ignore this property because it is just for handling the active upload stream
-        public IFormFile? ContractFile { get; set; }
-
+        // NOTE (Part 3): the IFormFile upload property lives only in the frontend's model now.
+        // Keeping IFormFile here made [ApiController] infer the whole parameter as [FromForm],
+        // which silently broke JSON binding on POST /api/contracts.
         public string? SignedAgreementFilePath { get; set; }
         public virtual ICollection<ServiceRequest> ServiceRequests { get; set; } = new List<ServiceRequest>();
     }

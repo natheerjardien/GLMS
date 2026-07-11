@@ -1,12 +1,57 @@
-# TechMove General Ledger Management System (GLMS)
+# TechMove Global Logistics Management System (GLMS)
 
-**Project Code:** PROG7311 POE PART 2  
+**Project Code:** PROG7311 POE PART 3  
 **Developer:** ST10435542 - Natheer Jardien
 
 ---
 
+## PART 3 — Modernisation, Docker & Automated Testing
+
+Part 3 decouples the Part 2 monolith into a **Service-Oriented Architecture**:
+
+```
+Browser ──> glms-frontend-web (ASP.NET Core MVC, cookie auth)
+                 │  HttpClient + JWT Bearer
+                 ▼
+            glms-backend-api (ASP.NET Core Web API + Swagger)
+                 │  Repository + Service layers (EF Core)
+                 ▼
+            sql-server-db (SQL Server 2022)
+```
+
+### What changed in Part 3
+| Area | Detail |
+| :--- | :--- |
+| **Web API** | New `PROG7311_GLMS_API` project owns ALL database access. REST endpoints: `GET/POST /api/contracts` (with `status`/`startDate`/`endDate` filtering), `PATCH /api/contracts/{id}/status`, plus Clients, ServiceRequests, Auth and Users controllers. Correct status codes (200/201/204/400/401/404). |
+| **Architecture** | Controllers → **Service layer** (business rules, reusing the Factory/State/Strategy patterns) → **Repository layer** (the only code touching `DbContext`), all wired with Dependency Injection. |
+| **Frontend decoupling** | The MVC project has **zero database dependency** — no EF Core, no Identity, no project reference to the API. All data flows through typed `HttpClient` API clients, with error handling for failed API calls. |
+| **Authentication** | JWT: the API issues tokens via `POST /api/auth/login` (ASP.NET Identity lives in the API). The MVC app stores the JWT + roles in a cookie and a `DelegatingHandler` attaches `Authorization: Bearer` to every API call. |
+| **Swagger** | Self-documenting API with JWT "Authorize" support, served at the API root (http://localhost:5187 or the container). |
+| **Integration tests** | `CustomWebApplicationFactory` boots the real API in memory (EF InMemory). Tests cover 401s, login, create-then-read data integrity, status-transition rules and filtering. **34 tests total, all green.** |
+| **Docker** | Multi-stage `Dockerfile` for the API and the web app + `docker-compose.yml` orchestrating **sql-server-db / glms-backend-api / glms-frontend-web** on an internal bridge network with service-name DNS, healthchecks, env-var config and persistent volumes. |
+| **CI** | GitHub Actions builds the solution and runs the full test suite on every push/PR. |
+
+### Run the whole system with Docker
+```bash
+docker compose up --build
+```
+- Web app: http://localhost:5225
+- API + Swagger: http://localhost:5187
+- The API waits for the SQL healthcheck, applies EF migrations automatically and seeds the default logins.
+
+### Run locally without Docker
+1. Start the API: `dotnet run --project PROG7311_GLMS_ST10435542/PROG7311_GLMS_API` (http://localhost:5187)
+2. Start the web app: `dotnet run --project PROG7311_GLMS_ST10435542/PROG7311_GLMS_ST10435542` (http://localhost:5225)
+3. Run all tests: `dotnet test PROG7311_GLMS_ST10435542/PROG7311_GLMS_ST10435542.slnx`
+
+### Part 3 submission artefacts
+- `docker-compose.yml` (repo root), `PROG7311_GLMS_API/Dockerfile`, `PROG7311_GLMS_ST10435542/Dockerfile`
+- Technical Reflection Report: `docs/GLMS_Part3_Technical_Reflection_Report.pdf`
+
+---
+
 ## 1. Project Overview
-The **General Ledger Management System (GLMS)** is a custom-built solution for TechMove to streamline client management and service contract workflows. The system focuses on data integrity, security, and automated financial calculations.
+The **Global Logistics Management System (GLMS)** is a custom-built solution for TechMove to streamline client management and service contract workflows. The system focuses on data integrity, security, and automated financial calculations.
 
 ### Key Performance Indicators:
 - **Security:** Role-based access control and file validation.

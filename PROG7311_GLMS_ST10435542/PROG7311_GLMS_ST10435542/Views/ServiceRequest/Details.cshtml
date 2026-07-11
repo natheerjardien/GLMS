@@ -1,6 +1,4 @@
 @model PROG7311_GLMS_ST10435542.Models.ServiceRequest
-@using Microsoft.AspNetCore.Identity
-@inject UserManager<IdentityUser> UserManager
 
 @{
     Layout = "_Layout";
@@ -78,10 +76,9 @@
             Assigned Driver
         </dt>
         <dd class="col-sm-10">
-            @if (!string.IsNullOrEmpty(Model.AssignedDriverId))
+            @if (!string.IsNullOrEmpty(Model.AssignedDriverId) && ViewBag.DriverDict != null && ViewBag.DriverDict.ContainsKey(Model.AssignedDriverId))
             {
-                var driver = await UserManager.FindByIdAsync(Model.AssignedDriverId);
-                @(driver?.UserName ?? "Unknown User")
+                @ViewBag.DriverDict[Model.AssignedDriverId]
             }
             else
             {

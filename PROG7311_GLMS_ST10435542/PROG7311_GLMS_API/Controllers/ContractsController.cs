@@ -1,110 +1,92 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using PROG7311_GLMS_API.Data;
 using PROG7311_GLMS_API.Models;
 using PROG7311_GLMS_API.Services;
 
 namespace PROG7311_GLMS_API.Controllers
 {
+    // Thin REST controller: no database or business logic here, everything is delegated to the
+    // service layer (which in turn uses repositories). This is the Separation of Concerns the
+    // SOA refactor is about.
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class ContractsController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
-        private readonly IContractFactory _contractFactory;
-        private readonly IContractStateManager _stateManager;
+        private readonly IContractService _contractService;
 
-        public ContractsController(ApplicationDbContext context, IContractFactory contractFactory, IContractStateManager stateManager)
-        {
-            _context = context;
-            _contractFactory = contractFactory;
-            _stateManager = stateManager;
-        }
+        public ContractsController(IContractService contractService) => _contractService = contractService;
 
+        // GET /api/contracts?status=Active&startDate=2026-01-01&endDate=2026-12-31
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Contract>>> GetAll()
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult<IEnumerable<Contract>>> GetAll(
+            [FromQuery] string? status,
+            [FromQuery] DateTime? startDate,
+            [FromQuery] DateTime? endDate)
         {
-            return await _context.Contracts.Include(c => c.Client).ToListAsync();
+            var contracts = await _contractService.GetContractsAsync(status, startDate, endDate);
+            return Ok(contracts);
         }
 
         [HttpGet("{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<Contract>> GetById(int id)
         {
-            var contract = await _context.Contracts.Include(c => c.Client).FirstOrDefaultAsync(c => c.Id == id);
-            
-            if (contract == null)
-            {
-                return NotFound();
-            }
-            
-            return contract;
+            var contract = await _contractService.GetByIdAsync(id);
+            return contract == null ? NotFound() : Ok(contract);
         }
 
         [HttpPost]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<Contract>> Create(Contract contract)
         {
-            var newContract = _contractFactory.CreateContract(
-                (int)contract.ClientId,
-                contract.ServiceLevel,
-                (DateTime)contract.StartDate,
-                (DateTime)contract.EndDate
-            );
-            
-            newContract.SignedAgreementFilePath = contract.SignedAgreementFilePath;
-
-            _context.Contracts.Add(newContract);
-            await _context.SaveChangesAsync();
-            
-            return CreatedAtAction(nameof(GetById), new { id = newContract.Id }, newContract);
+            try
+            {
+                var newContract = await _contractService.CreateAsync(contract);
+                return CreatedAtAction(nameof(GetById), new { id = newContract.Id }, newContract);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpPut("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Update(int id, Contract contract)
         {
             if (id != contract.Id)
             {
-                return BadRequest();
-            }
-            
-            _context.Entry(contract).State = EntityState.Modified;
-            await _context.SaveChangesAsync();
-            
-            return NoContent();
-        }
-
-        [HttpPatch("{id}/status")]
-        public async Task<IActionResult> UpdateStatus(int id, [FromBody] string action)
-        {
-            var contract = await _context.Contracts.FindAsync(id);
-            
-            if (contract == null)
-            {
-                return NotFound();
+                return BadRequest("The id in the URL does not match the id in the body.");
             }
 
             try
             {
-                switch (action)
-                {
-                    case "Activate": 
-                        _stateManager.ActivateContract(contract); 
-                        break;
-                    case "Expire": 
-                        _stateManager.ExpireContract(contract); 
-                        break;
-                    case "Hold": 
-                        _stateManager.PutOnHoldContract(contract); 
-                        break;
-                    default: 
-                        return BadRequest("Invalid action");
-                }
+                var updated = await _contractService.UpdateAsync(id, contract);
+                return updated ? NoContent() : NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
 
-                await _context.SaveChangesAsync();
-                return Ok(contract);
+        // PATCH /api/contracts/5/status  (body: "Activate" | "Expire" | "Hold")
+        [HttpPatch("{id}/status")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> UpdateStatus(int id, [FromBody] string action)
+        {
+            try
+            {
+                var contract = await _contractService.ChangeStatusAsync(id, action);
+                return contract == null ? NotFound() : Ok(contract);
             }
             catch (InvalidOperationException ex)
             {
@@ -113,24 +95,25 @@ namespace PROG7311_GLMS_API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Delete(int id)
         {
-            var contract = await _context.Contracts.Include(c => c.ServiceRequests).FirstOrDefaultAsync(c => c.Id == id);
-            
-            if (contract == null)
+            try
+            {
+                await _contractService.DeleteAsync(id);
+                return NoContent();
+            }
+            catch (KeyNotFoundException)
             {
                 return NotFound();
             }
-            
-            if (contract.ServiceRequests.Any())
+            catch (InvalidOperationException ex)
             {
-                return BadRequest("Cannot delete contract with active Service Requests.");
+                return BadRequest(ex.Message);
             }
-
-            _context.Contracts.Remove(contract);
-            await _context.SaveChangesAsync();
-            
-            return NoContent();
         }
     }
 }

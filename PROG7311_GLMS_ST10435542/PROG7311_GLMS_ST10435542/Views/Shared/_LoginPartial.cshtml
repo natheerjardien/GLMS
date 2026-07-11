@@ -1,18 +1,14 @@
-@using Microsoft.AspNetCore.Identity
-@* these lines give us the tools to check if a user is logged in and see their account info *@
-@inject SignInManager<IdentityUser> SignInManager
-@inject UserManager<IdentityUser> UserManager
+@* Cookie-based auth partial - the old Identity/SignInManager version is gone because the
+   frontend no longer talks to the database. Roles and the user's name come from the cookie. *@
 
 <ul class="navbar-nav">
-@if (SignInManager.IsSignedIn(User)) @* this checks if the person using the website signed into an account *@
+@if (User.Identity?.IsAuthenticated == true)
 {
     <li class="nav-item">
-        <a class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Manage/Index" title="Manage">
-            Hello @User.Identity?.Name!
-        </a>
+        <span class="nav-link text-dark">Hello @User.Identity.Name!</span>
     </li>
     <li class="nav-item">
-        <form class="form-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
+        <form class="form-inline" asp-controller="Account" asp-action="Logout" method="post">
             <button type="submit" class="nav-link btn btn-link text-dark border-0">Logout</button>
         </form>
     </li>
@@ -20,10 +16,7 @@
 else
 {
     <li class="nav-item">
-        <a class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Register">Register</a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Login">Login</a>
+        <a class="nav-link text-dark" asp-controller="Account" asp-action="Login">Login</a>
     </li>
 }
 </ul>

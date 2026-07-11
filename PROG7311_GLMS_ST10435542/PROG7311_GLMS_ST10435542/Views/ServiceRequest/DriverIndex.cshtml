@@ -1,6 +1,4 @@
 @model IEnumerable<PROG7311_GLMS_ST10435542.Models.ServiceRequest>
-@using Microsoft.AspNetCore.Identity
-@inject UserManager<IdentityUser> UserManager
 
 @{
     Layout = "_Layout";
@@ -86,10 +84,9 @@
                         <i class="bi bi-exclamation-triangle"></i> Driver Needed
                     </span>
                 }
-                else if (!string.IsNullOrEmpty(item.AssignedDriverId))
+                else if (!string.IsNullOrEmpty(item.AssignedDriverId) && ViewBag.DriverDict != null && ViewBag.DriverDict.ContainsKey(item.AssignedDriverId))
                 {
-                    var driver = await UserManager.FindByIdAsync(item.AssignedDriverId);
-                    @(driver?.UserName ?? "Assigned")
+                    @ViewBag.DriverDict[item.AssignedDriverId]
                 }
                 else
                 {

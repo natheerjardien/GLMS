@@ -1,66 +1,56 @@
-using Microsoft.EntityFrameworkCore;
-using PROG7311_GLMS_API.Data;
-using PROG7311_GLMS_API.Services;
-using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using PROG7311_GLMS_ST10435542.Services.ApiClients;
 
+// PART 3: this frontend is fully decoupled from the database.
+// There is no DbContext, no Entity Framework and no SQL Server dependency here -
+// every piece of data comes from the GLMS Web API over HTTP.
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection"); // Reads the connection string from appsettings.json
-
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString)); // Configures to use the ConnectionString
-
-// this sets up the identity system for logins and makes the password rules easier for testing
-builder.Services.AddDefaultIdentity<IdentityUser>(options => { // for the logins
-    options.Password.RequireDigit = false;
-    options.Password.RequiredLength = 6;
-    options.Password.RequireNonAlphanumeric = false;
-    options.Password.RequireUppercase = false;
-})
-.AddRoles<IdentityRole>() // adds role management
-.AddEntityFrameworkStores<ApplicationDbContext>();
-
-// Add services to the container.
 builder.Services.AddControllersWithViews();
-builder.Services.AddRazorPages();
 
-builder.Services.AddScoped<IContractFactory, ContractFactory>(); // this registers the factory pattern service
-builder.Services.AddHttpClient<ICurrencyConversionStrategy, LiveExchangeRateStrategy>(); // this registers the live currency api service and lets it use the internet
-builder.Services.AddScoped<IContractStateManager, ContractStateManager>();// this registers the state pattern manager service
-builder.Services.AddScoped<ICurrencyConversionStrategy, LiveExchangeRateStrategy>();
-builder.Services.AddScoped<IPricingService, PricingService>();
+// Cookie auth for the browser session. The cookie carries the user's roles plus the JWT
+// issued by the API; the BearerTokenHandler forwards that JWT on every API call.
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Account/Login";
+        options.AccessDeniedPath = "/Account/AccessDenied";
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    });
 
-builder.Services.AddHttpClient<PROG7311_GLMS_ST10435542.Services.ApiClients.ServiceRequestClient>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddTransient<BearerTokenHandler>();
+
+// In Docker this becomes http://glms-backend-api:8080/ via the ApiSettings__BaseUrl env variable
+var apiBaseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5187/";
+if (!apiBaseUrl.EndsWith('/'))
+{
+    apiBaseUrl += "/";
+}
+
+void ConfigureApiClient(HttpClient client) => client.BaseAddress = new Uri(apiBaseUrl);
+
+builder.Services.AddHttpClient<AuthApiClient>(ConfigureApiClient).AddHttpMessageHandler<BearerTokenHandler>();
+builder.Services.AddHttpClient<ClientApiClient>(ConfigureApiClient).AddHttpMessageHandler<BearerTokenHandler>();
+builder.Services.AddHttpClient<ContractApiClient>(ConfigureApiClient).AddHttpMessageHandler<BearerTokenHandler>();
+builder.Services.AddHttpClient<ServiceRequestClient>(ConfigureApiClient).AddHttpMessageHandler<BearerTokenHandler>();
+builder.Services.AddHttpClient<UsersApiClient>(ConfigureApiClient).AddHttpMessageHandler<BearerTokenHandler>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
 }
 
-app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 
-// vital for the login system to check who the user is and what they can do
-app.UseAuthentication(); // for the logins
+app.UseAuthentication();
 app.UseAuthorization();
-
-app.MapStaticAssets();
-app.MapRazorPages();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}")
-    .WithStaticAssets();
-
-using (var scope = app.Services.CreateScope()) // runs the dbinitializer to make sure the accounts are created at startup
-{
-    await DbInitializer.SeedRolesAndUsers(scope.ServiceProvider);
-}
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();
