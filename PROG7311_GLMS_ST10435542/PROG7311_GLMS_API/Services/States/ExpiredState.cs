@@ -17,7 +17,7 @@ namespace PROG7311_GLMS_API.Services
 
         public void PutOnHold(Contract contract)
         {
-            throw new InvalidOperationException("This contract is already On Hold.");
+            throw new InvalidOperationException("You cannot put an Expired contract on hold.");
         }
     }
 }

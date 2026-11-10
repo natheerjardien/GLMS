@@ -30,6 +30,7 @@ if (!apiBaseUrl.EndsWith('/'))
 
 void ConfigureApiClient(HttpClient client) => client.BaseAddress = new Uri(apiBaseUrl);
 
+// Used AddHttpClient to register typed clients that automatically attach the JWT via the BearerTokenHandler (Microsoft, 2026).
 builder.Services.AddHttpClient<AuthApiClient>(ConfigureApiClient).AddHttpMessageHandler<BearerTokenHandler>();
 builder.Services.AddHttpClient<ClientApiClient>(ConfigureApiClient).AddHttpMessageHandler<BearerTokenHandler>();
 builder.Services.AddHttpClient<ContractApiClient>(ConfigureApiClient).AddHttpMessageHandler<BearerTokenHandler>();
@@ -54,3 +55,6 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();
+/* Reference List:
+    Microsoft. 2026. Make HTTP requests using IHttpClientFactory in ASP.NET Core. [online] Available at: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/http-requests [Accessed 22 April 2026].
+*/

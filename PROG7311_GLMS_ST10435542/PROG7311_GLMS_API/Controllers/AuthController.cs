@@ -9,10 +9,12 @@ namespace PROG7311_GLMS_API.Controllers
 {
     // Identity (users, passwords, roles) now lives entirely inside the API. The MVC frontend
     // never touches the database - it logs in here and receives a JWT.
+    // Used [ApiController] to enable automatic model validation and RESTful API behaviors (Microsoft, 2026a).
     [Route("api/[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
     {
+        // Used UserManager to securely look up users and verify hashed passwords against the database (Microsoft, 2026b).
         private readonly UserManager<IdentityUser> _userManager;
         private readonly ITokenService _tokenService;
         private readonly IClientService _clientService;
@@ -80,3 +82,7 @@ namespace PROG7311_GLMS_API.Controllers
         }
     }
 }
+/* Reference List:
+    Microsoft. 2026a. Create web APIs with ASP.NET Core. [online] Available at: https://learn.microsoft.com/en-us/aspnet/core/web-api/ [Accessed 22 April 2026].
+    Microsoft. 2026b). Introduction to Identity on ASP.NET Core. [online] Available at: https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity [Accessed 22 April 2026].
+*/

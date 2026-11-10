@@ -77,6 +77,7 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             return View();
         }
 
+        // Used ValidateAntiForgeryToken to prevent Cross-Site Request Forgery attacks on form submissions (Microsoft, 2026).
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(ClientCreateViewModel model)
@@ -233,3 +234,6 @@ namespace PROG7311_GLMS_ST10435542.Controllers
         }
     }
 }
+/* Reference List:
+    Microsoft. 2026. Prevent Cross-Site Request Forgery (XSRF/CSRF) attacks in ASP.NET Core. [online] Available at: https://learn.microsoft.com/en-us/aspnet/core/security/anti-request-forgery [Accessed 22 April 2026].
+*/

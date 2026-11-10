@@ -7,7 +7,7 @@ namespace PROG7311_GLMS_API.Services
     {
         private readonly IServiceRequestRepository _serviceRequestRepository;
         private readonly IContractRepository _contractRepository;
-        private readonly IPricingService _pricingService;                     // uses the Strategy pattern internally for currency conversion
+        private readonly IPricingService _pricingService;
         private readonly ICurrencyConversionStrategy _currencyStrategy;
 
         public ServiceRequestService(
@@ -35,8 +35,6 @@ namespace PROG7311_GLMS_API.Services
 
             var parentContract = await _contractRepository.GetByIdAsync(serviceRequest.ContractId.Value);
 
-            // Core workflow rule from Part 2, now enforced in the backend where it cannot be bypassed:
-            // requests may only be raised against valid, ACTIVE contracts.
             if (parentContract == null || parentContract.Status != "Active")
             {
                 throw new InvalidOperationException("Cannot create a service request for a missing, Draft, Expired or On Hold contract.");
@@ -46,7 +44,20 @@ namespace PROG7311_GLMS_API.Services
             serviceRequest.Status = "Pending";
             serviceRequest.RequestDate = DateTime.UtcNow;
 
-            // Server-side pricing: ZAR total comes from the package size + SLA via the currency strategy
+            // 1. Calculate the USD base price server-side
+            decimal usdBase = serviceRequest.PackageSizeCategory switch
+            {
+                "1-5kg" => 5.00m,
+                "5-10kg" => 10.00m,
+                "10+kg" => 20.00m,
+                _ => serviceRequest.OriginalCost ?? 0.00m
+            };
+
+            if (serviceRequest.SlaType == "Express") usdBase *= 1.5m;
+
+            serviceRequest.OriginalCost = usdBase;
+
+            // 2. Fetch the live exchange rate and convert to ZAR
             serviceRequest.Cost = await _pricingService.GetTotalCostInUsdAsync(
                 serviceRequest.PackageSizeCategory ?? string.Empty,
                 serviceRequest.SlaType ?? "Standard");
@@ -72,12 +83,23 @@ namespace PROG7311_GLMS_API.Services
             existing.Status = serviceRequest.Status;
             existing.AssignedDriverId = serviceRequest.AssignedDriverId;
 
-            // If the USD amount changed, recalculate the ZAR cost with the live exchange rate
-            if (serviceRequest.OriginalCost.HasValue && existing.OriginalCost != serviceRequest.OriginalCost)
+            // 1. Recalculate the USD base price server-side in case the size or SLA was edited
+            decimal usdBase = existing.PackageSizeCategory switch
             {
-                existing.OriginalCost = serviceRequest.OriginalCost;
-                existing.Cost = await _currencyStrategy.ConvertAsync(serviceRequest.OriginalCost.Value);
-            }
+                "1-5kg" => 5.00m,
+                "5-10kg" => 10.00m,
+                "10+kg" => 20.00m,
+                _ => serviceRequest.OriginalCost ?? existing.OriginalCost ?? 0.00m
+            };
+
+            if (existing.SlaType == "Express") usdBase *= 1.5m;
+
+            existing.OriginalCost = usdBase;
+
+            // 2. Fetch the live exchange rate and update the ZAR cost
+            existing.Cost = await _pricingService.GetTotalCostInUsdAsync(
+                existing.PackageSizeCategory ?? string.Empty,
+                existing.SlaType ?? "Standard");
 
             await _serviceRequestRepository.UpdateAsync(existing);
             return true;

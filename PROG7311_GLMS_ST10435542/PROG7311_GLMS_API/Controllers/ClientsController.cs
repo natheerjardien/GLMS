@@ -5,6 +5,7 @@ using PROG7311_GLMS_API.Services;
 
 namespace PROG7311_GLMS_API.Controllers
 {
+    // Used Authorize attribute to restrict this entire controller to users with a valid JWT token (Microsoft, 2026b).
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
@@ -28,6 +29,7 @@ namespace PROG7311_GLMS_API.Controllers
             return client == null ? NotFound() : Ok(client);
         }
 
+        // Used CreatedAtAction to return a 201 status code along with a Location header pointing to the new resource (Microsoft, 2026a).
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -75,3 +77,7 @@ namespace PROG7311_GLMS_API.Controllers
         }
     }
 }
+/* Reference List:
+    Microsoft. 2026a. Create web APIs with ASP.NET Core. [online] Available at: https://learn.microsoft.com/en-us/aspnet/core/web-api/ [Accessed 22 April 2026].
+    Microsoft. 2026b. Introduction to Identity on ASP.NET Core. [online] Available at: https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity [Accessed 22 April 2026].
+*/

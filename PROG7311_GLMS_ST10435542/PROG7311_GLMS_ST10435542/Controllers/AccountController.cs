@@ -24,6 +24,7 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             return View(new LoginViewModel { ReturnUrl = returnUrl });
         }
 
+        // Used CookieAuthenticationDefaults to securely store the JWT token in an encrypted browser cookie for the frontend session (Microsoft, 2026).
         [HttpPost]
         [AllowAnonymous]
         [ValidateAntiForgeryToken]
@@ -87,3 +88,6 @@ namespace PROG7311_GLMS_ST10435542.Controllers
         public IActionResult AccessDenied() => View();
     }
 }
+/* Reference List:
+    Microsoft. 2026. Cookie Authentication in ASP.NET Core. [online] Available at: https://learn.microsoft.com/en-us/aspnet/core/security/authentication/cookie [Accessed 22 April 2026].
+*/

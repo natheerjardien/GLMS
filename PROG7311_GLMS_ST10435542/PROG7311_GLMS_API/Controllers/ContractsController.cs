@@ -18,6 +18,7 @@ namespace PROG7311_GLMS_API.Controllers
         public ContractsController(IContractService contractService) => _contractService = contractService;
 
         // GET /api/contracts?status=Active&startDate=2026-01-01&endDate=2026-12-31
+        // Used FromQuery to explicitly bind the filter parameters from the URL query string (Microsoft, 2026a.
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<Contract>>> GetAll(
@@ -77,6 +78,7 @@ namespace PROG7311_GLMS_API.Controllers
         }
 
         // PATCH /api/contracts/5/status  (body: "Activate" | "Expire" | "Hold")
+        // Used HttpPatch to allow partial updates of a resource, specifically updating just the status field (Microsoft, 2026a).
         [HttpPatch("{id}/status")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -117,3 +119,6 @@ namespace PROG7311_GLMS_API.Controllers
         }
     }
 }
+/* Reference List:
+    Microsoft. 2026. Create web APIs with ASP.NET Core. [online] Available at: https://learn.microsoft.com/en-us/aspnet/core/web-api/ [Accessed 22 April 2026].
+*/

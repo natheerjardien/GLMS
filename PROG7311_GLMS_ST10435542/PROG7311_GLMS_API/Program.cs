@@ -34,6 +34,7 @@ builder.Services.AddIdentityCore<IdentityUser>(options =>
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("Jwt:Key is not configured.");
 
+// Used AddJwtBearer to configure the API to securely validate incoming JWT signatures and expirations (Microsoft, 2026).
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -140,3 +141,6 @@ namespace PROG7311_GLMS_API
 {
     public partial class Program { }
 }
+/* Reference List:
+    Microsoft. 2026. JwtBearer authentication in ASP.NET Core. [online] Available at: https://learn.microsoft.com/en-us/aspnet/core/security/authentication/jwt-authn [Accessed 22 April 2026].
+*/

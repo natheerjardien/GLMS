@@ -24,6 +24,7 @@ namespace PROG7311_GLMS_ST10435542.Controllers
         }
 
         // GET: ServiceRequest
+        // Used TempData to safely pass error and success messages to the client View across post-redirect workflows (Microsoft, 2026).
         [Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> Index()
         {
@@ -70,7 +71,6 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             return View("DriverIndex", assignedRequests);
         }
 
-        // GET: ServiceRequest/Details/5
         [Authorize(Roles = "Admin,Staff,Client,Driver")]
         public async Task<IActionResult> Details(int? id)
         {
@@ -90,7 +90,6 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             return View(serviceRequest);
         }
 
-        // GET: ServiceRequest/Create
         [Authorize(Roles = "Admin,Staff,Client")]
         public async Task<IActionResult> Create()
         {
@@ -99,7 +98,6 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             return View();
         }
 
-        // POST: ServiceRequest/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,Staff,Client")]
@@ -157,7 +155,6 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             return View(serviceRequest);
         }
 
-        // GET: ServiceRequest/Edit/5
         [Authorize(Roles = "Admin,Staff,Client,Driver")]
         public async Task<IActionResult> Edit(int? id)
         {
@@ -191,7 +188,6 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             return View(serviceRequest);
         }
 
-        // POST: ServiceRequest/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin,Staff,Client,Driver")]
@@ -272,7 +268,6 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             return View(serviceRequest);
         }
 
-        // GET: ServiceRequest/Delete/5
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int? id)
         {
@@ -291,7 +286,6 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             return View(serviceRequest);
         }
 
-        // POST: ServiceRequest/Delete/5
         [Authorize(Roles = "Admin")]
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
@@ -311,8 +305,6 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // Contract dropdown, sourced from the API. Only ACTIVE contracts are offered when creating,
-        // and clients only ever see their own contracts.
         private async Task PopulateContractsDropDownListAsync(int? selectedContract = null, bool includeAllStatuses = false)
         {
             var contracts = await _contractApiClient.GetAllAsync(status: includeAllStatuses ? null : "Active");
@@ -345,3 +337,6 @@ namespace PROG7311_GLMS_ST10435542.Controllers
         }
     }
 }
+/* Reference List:
+    Microsoft. 2026. Session and state management in ASP.NET Core. [online] Available at: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/app-state [Accessed 22 April 2026].
+*/

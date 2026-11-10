@@ -11,6 +11,7 @@ namespace PROG7311_GLMS_API.Controllers
     [Authorize]
     public class UsersController : ControllerBase
     {
+        // Used UserManager to retrieve users belonging to specific roles for assignment lookups (Microsoft, 2026b).
         private readonly UserManager<IdentityUser> _userManager;
 
         public UsersController(UserManager<IdentityUser> userManager) => _userManager = userManager;
@@ -40,3 +41,7 @@ namespace PROG7311_GLMS_API.Controllers
         }
     }
 }
+/* Reference List:
+    Microsoft. 2026a. Create web APIs with ASP.NET Core. [online] Available at: https://learn.microsoft.com/en-us/aspnet/core/web-api/ [Accessed 22 April 2026].
+    Microsoft. 2026b. Introduction to Identity on ASP.NET Core. [online] Available at: https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity [Accessed 22 April 2026].
+*/

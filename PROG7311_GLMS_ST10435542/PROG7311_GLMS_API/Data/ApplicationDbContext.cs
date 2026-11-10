@@ -18,12 +18,13 @@ namespace PROG7311_GLMS_API.Data
         {
             base.OnModelCreating(builder); // This is CRITICAL for Identity to work
 
+            // Used OnModelCreating to configure EF Core fluent API relationships and prevent cascading delete loops in SQL Server (Microsoft, 2026).
             builder.Entity<Contract>() // creates a strict one-to-many relationship between client and contract
                 .HasOne(c => c.Client)
                 .WithMany(cl => cl.Contracts)
                 .HasForeignKey(c => c.ClientId)
                 .OnDelete(DeleteBehavior.Cascade);
-            
+
             builder.Entity<ServiceRequest>() // creates a strict one-to-many relationship between contract and service request
                 .HasOne(sr => sr.Contract)
                 .WithMany(c => c.ServiceRequests)
@@ -38,3 +39,6 @@ namespace PROG7311_GLMS_API.Data
         }
     }
 }
+/* Reference List:
+    Microsoft. 2026. Creating and configuring a model in Entity Framework Core. [online] Available at: https://learn.microsoft.com/en-us/ef/core/modeling/ [Accessed 22 April 2026].
+*/

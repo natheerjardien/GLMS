@@ -31,6 +31,7 @@ namespace PROG7311_GLMS_API.Controllers
 
         // The business rule (only ACTIVE contracts can receive requests) and the currency
         // calculation both run inside the service layer, so the API is the single gatekeeper.
+        // Used try-catch blocks to catch domain logic exceptions and return them cleanly as 400 Bad Request responses (Microsoft, 2026).
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -73,3 +74,6 @@ namespace PROG7311_GLMS_API.Controllers
         }
     }
 }
+/* Reference List:
+    Microsoft. 2026. Create web APIs with ASP.NET Core. [online] Available at: https://learn.microsoft.com/en-us/aspnet/core/web-api/ [Accessed 22 April 2026].
+*/

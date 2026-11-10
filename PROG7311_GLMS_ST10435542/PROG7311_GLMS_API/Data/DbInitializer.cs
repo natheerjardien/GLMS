@@ -2,10 +2,11 @@ using Microsoft.AspNetCore.Identity;
 
 namespace PROG7311_GLMS_API.Data
 {
-// According to Microsoft (n.d.), role-based authorization is a powerful way to restrict access to certain parts of an application based on the user's role.
-// In this implementation, I created two roles, "Admin" and "Staff". The DbInitializer class is responsible for seeding these roles and creating default users for each role when the application starts.
+    // According to Microsoft (n.d.), role-based authorization is a powerful way to restrict access to certain parts of an application based on the user's role.
+    // In this implementation, I created two roles, "Admin" and "Staff". The DbInitializer class is responsible for seeding these roles and creating default users for each role when the application starts.
     public static class DbInitializer // this class helps fill the database with the default admin and staff profiles when the application starts
     {
+        // Used RoleManager to dynamically seed necessary security roles on application startup (Microsoft, 2026).
         public static async Task SeedRolesAndUsers(IServiceProvider serviceProvider) // this method sets up the roles and the first users automatically
         {
             var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
@@ -44,11 +45,6 @@ namespace PROG7311_GLMS_API.Data
         }
     }
 }
-
 /* Reference List:
- 
-    Microsoft Docs. (n.d.). Role-based authorization in ASP.NET Core. [online]
-    Available at: <https://learn.microsoft.com/en-us/aspnet/core/security/authorization/roles?view=aspnetcore-10.0>
-    [Accessed 18 April 2026].
-
- */
+    Microsoft. 2026. Introduction to Identity on ASP.NET Core. [online] Available at: https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity [Accessed 22 April 2026].
+*/

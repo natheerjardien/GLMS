@@ -12,7 +12,6 @@ namespace PROG7311_GLMS_API.Services
 
         public void Expire(Contract contract) 
         { 
-            contract.Status = "Active";
             contract.Status = "Expired"; 
         }
 

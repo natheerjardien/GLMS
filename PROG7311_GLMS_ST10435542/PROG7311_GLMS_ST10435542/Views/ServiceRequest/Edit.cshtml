@@ -25,7 +25,7 @@
 
             <div class="form-group">
                 <label asp-for="ContractId" class="control-label"></label>
-                <select asp-for="ContractId" class="form-control" asp-items="ViewBag.ContractId"></select>
+                <select asp-for="ContractId" class="form-control" asp-items="ViewBag.ContractId" disabled="disabled"></select>
                 <span asp-validation-for="ContractId" class="text-danger"></span>
             </div>
 
@@ -104,7 +104,6 @@
                 <span asp-validation-for="Status" class="text-danger"></span>
             </div>
 
-            </p>
             <div class="form-group" class="mt-4 d-flex gap-2">
                 <input type="submit" value="Save" class="btn btn-outline-primary" />
                 

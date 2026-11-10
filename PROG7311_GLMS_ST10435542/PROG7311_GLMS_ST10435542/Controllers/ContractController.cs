@@ -75,6 +75,7 @@ namespace PROG7311_GLMS_ST10435542.Controllers
             return View();
         }
 
+        // Used IFormFile to handle the multipart form data for the PDF upload directly in memory (Microsoft, 2026).
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,ClientId,StartDate,EndDate,ServiceLevel,ContractFile")] Contract contract)
@@ -269,3 +270,6 @@ namespace PROG7311_GLMS_ST10435542.Controllers
         }
     }
 }
+/* Reference List:
+    Microsoft. 2026. Upload files in ASP.NET Core. [online] Available at: https://learn.microsoft.com/en-us/aspnet/core/mvc/models/file-uploads [Accessed 22 April 2026].
+*/
